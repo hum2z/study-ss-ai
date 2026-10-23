@@ -109,13 +109,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             showAccessibilityHelp()
             return
         }
-        NSWorkspace.shared.open(site.url)
+        // Paste into the chat that's already open; only open a new one if there isn't one.
+        let reused = focusOpenTab(of: site)
+        if !reused { NSWorkspace.shared.open(site.url) }
 
         waitForBrowser(site.url, attempts: 50) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Settings.pasteDelay) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + (reused ? 0.5 : Settings.pasteDelay)) {
                 self.paste()
             }
         }
+    }
+
+    /// Browsers we can search for an open tab (via AppleScript), by bundle id.
+    private let scriptableBrowsers: [String: String] = [
+        "com.google.Chrome": "Google Chrome",
+        "com.brave.Browser": "Brave Browser",
+        "com.microsoft.edgemac": "Microsoft Edge",
+        "com.apple.Safari": "Safari",
+    ]
+
+    /// Brings an already-open tab for `site` to the front. Returns false if none is open.
+    private func focusOpenTab(of site: Site) -> Bool {
+        guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: site.url),
+              let bundleID = Bundle(url: appURL)?.bundleIdentifier,
+              let name = scriptableBrowsers[bundleID],
+              !NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty
+        else { return false }
+
+        let domain = site.url.host!
+        let source = bundleID == "com.apple.Safari" ? """
+            tell application "Safari"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        try
+                            if URL of t contains "\(domain)" then
+                                set current tab of w to t
+                                set index of w to 1
+                                activate
+                                return "found"
+                            end if
+                        end try
+                    end repeat
+                end repeat
+            end tell
+            return "none"
+            """ : """
+            tell application "\(name)"
+                repeat with w in windows
+                    set i to 0
+                    repeat with t in tabs of w
+                        set i to i + 1
+                        if URL of t contains "\(domain)" then
+                            set active tab index of w to i
+                            set index of w to 1
+                            activate
+                            return "found"
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            return "none"
+            """
+
+        var error: NSDictionary?
+        let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
+        return result?.stringValue == "found"
     }
 
     /// Polls (every 0.2s) until the browser that opens `url` is the frontmost app,

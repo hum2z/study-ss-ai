@@ -13,6 +13,8 @@ ConfigDir := A_AppData "\StudySnap"
 DirCreate ConfigDir
 Ini := ConfigDir "\settings.ini"
 firstLaunch := !FileExist(Ini)
+lastHwnd := 0      ; window we last pasted into
+lastTitle := ""
 
 GetSetting(key, default) => IniRead(Ini, "Settings", key, default)
 SetSetting(key, value) => IniWrite(value, Ini, "Settings", key)
@@ -42,17 +44,51 @@ Snap(*) {
     if (site = "")
         return
 
-    Run Sites[site]
-    ; Wait for the site's tab to be in front so Ctrl+V doesn't go to another window.
-    SetTitleMatchMode 2
-    if WinWait(site, , 15)
-        WinActivate
-    Sleep GetSetting("pasteDelay", 3) * 1000
+    ; Paste into the chat that's already open; only open a new one if there isn't one.
+    if hwnd := FindOpenChat(site) {
+        WinActivate "ahk_id " hwnd
+        WinWaitActive "ahk_id " hwnd, , 3
+        Sleep 300
+    } else {
+        Run Sites[site]
+        ; Wait for the site's tab to be in front so Ctrl+V doesn't go to another window.
+        SetTitleMatchMode 2
+        if WinWait(site, , 15)
+            WinActivate
+        Sleep GetSetting("pasteDelay", 3) * 1000
+    }
     Send "^v"
+    RememberChat()
     if (GetSetting("autoSend", 0) = 1) {
         Sleep 2000              ; give the image a moment to upload
         Send "{Enter}"
     }
+}
+
+; --- Finding the open chat ---
+
+; A browser window whose current tab is the site, or the window we pasted into last
+; time if it's still showing the same chat. Returns 0 if neither.
+FindOpenChat(site) {
+    SetTitleMatchMode 2
+    for cls in ["Chrome_WidgetWin_1", "MozillaWindowClass"] {
+        if hwnd := WinExist(site " ahk_class " cls)
+            return hwnd
+    }
+    if lastHwnd && WinExist("ahk_id " lastHwnd) && WinGetTitle("ahk_id " lastHwnd) = lastTitle
+        return lastHwnd
+    return 0
+}
+
+RememberChat() {
+    global lastHwnd := WinExist("A")
+    SaveChatTitle()
+    SetTimer SaveChatTitle, -15000  ; chat sites rename the tab after the first message
+}
+
+SaveChatTitle() {
+    global lastTitle
+    try lastTitle := WinGetTitle("ahk_id " lastHwnd)
 }
 
 ; --- Site picker ---

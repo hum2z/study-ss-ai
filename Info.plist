@@ -14,6 +14,8 @@
     <string>0.1</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>StudySnap finds your open ChatGPT, Gemini or Claude tab so it can paste into the same chat.</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
