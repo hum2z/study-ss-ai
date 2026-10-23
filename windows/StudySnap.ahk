@@ -43,6 +43,10 @@ Snap(*) {
         return
 
     Run Sites[site]
+    ; Wait for the site's tab to be in front so Ctrl+V doesn't go to another window.
+    SetTitleMatchMode 2
+    if WinWait(site, , 15)
+        WinActivate
     Sleep GetSetting("pasteDelay", 3) * 1000
     Send "^v"
     if (GetSetting("autoSend", 0) = 1) {

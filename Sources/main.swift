@@ -105,19 +105,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func send() {
         guard let site = Settings.site ?? askForSite() else { return }
+        guard AXIsProcessTrusted() else {
+            showAccessibilityHelp()
+            return
+        }
         NSWorkspace.shared.open(site.url)
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Settings.pasteDelay) {
-            guard AXIsProcessTrusted() else {
-                self.requestAccessibility()
-                return
+        waitForBrowser(site.url, attempts: 50) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Settings.pasteDelay) {
+                self.paste()
             }
-            self.pressKey(CGKeyCode(kVK_ANSI_V), flags: .maskCommand)
-            if Settings.autoSend {
-                // Give the image a moment to upload before sending.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                    self.pressKey(CGKeyCode(kVK_Return), flags: [])
-                }
+        }
+    }
+
+    /// Polls (every 0.2s) until the browser that opens `url` is the frontmost app,
+    /// so ⌘V goes to the website and not to whatever was in front before.
+    private func waitForBrowser(_ url: URL, attempts: Int, then done: @escaping () -> Void) {
+        let browser = NSWorkspace.shared.urlForApplication(toOpen: url)
+            .flatMap { Bundle(url: $0)?.bundleIdentifier }
+        let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        if browser == nil || front == browser || attempts == 0 {
+            done()
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.waitForBrowser(url, attempts: attempts - 1, then: done)
+        }
+    }
+
+    private func paste() {
+        pressKey(CGKeyCode(kVK_ANSI_V), flags: .maskCommand)
+        if Settings.autoSend {
+            // Give the image a moment to upload before sending.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                self.pressKey(CGKeyCode(kVK_Return), flags: [])
             }
         }
     }
@@ -152,6 +173,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rebuildMenu()
         }
         return site
+    }
+
+    private func showAccessibilityHelp() {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "StudySnap can't paste yet"
+        alert.informativeText = """
+            Turn on StudySnap in System Settings → Privacy & Security → Accessibility.
+            If it's already on, remove it with the – button and add it again (needed after every rebuild).
+
+            Your screenshot is on the clipboard, so ⌘V works by hand for now.
+            """
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        }
     }
 
     private func requestAccessibility() {
