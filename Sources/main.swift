@@ -45,7 +45,7 @@ enum Settings {
 
     /// Seconds to wait for the website to load before pasting.
     static var pasteDelay: Double {
-        get { defaults.object(forKey: "pasteDelay") as? Double ?? 3 }
+        get { defaults.object(forKey: "pasteDelay") as? Double ?? 5 }
         set { defaults.set(newValue, forKey: "pasteDelay") }
     }
 }
@@ -114,9 +114,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !reused { NSWorkspace.shared.open(site.url) }
 
         waitForBrowser(site.url, attempts: 50) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + (reused ? 0.5 : Settings.pasteDelay)) {
-                self.paste()
+            // Pasting while the site is still loading gets lost when its chat box re-renders.
+            self.waitForPageLoad(of: site, attempts: 100) { loaded in
+                let delay = reused ? 0.5 : (loaded ? 1.5 : Settings.pasteDelay)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    self.paste()
+                }
             }
+        }
+    }
+
+    /// Polls (every 0.3s) until the browser's front tab is the site and has finished loading.
+    /// Calls back with false if the browser can't tell us (e.g. Safari), so we fall back to the delay.
+    private func waitForPageLoad(of site: Site, attempts: Int, then done: @escaping (Bool) -> Void) {
+        guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: site.url),
+              let bundleID = Bundle(url: appURL)?.bundleIdentifier,
+              bundleID != "com.apple.Safari",
+              let name = scriptableBrowsers[bundleID]
+        else { return done(false) }
+
+        let source = """
+            tell application "\(name)"
+                set t to active tab of front window
+                if URL of t does not contain "\(site.url.host!)" then return "wait"
+                if loading of t then return "wait"
+                return "ready"
+            end tell
+            """
+        var error: NSDictionary?
+        let state = NSAppleScript(source: source)?.executeAndReturnError(&error).stringValue
+        if state == "ready" { return done(true) }
+        if state == nil || attempts == 0 { return done(false) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            self.waitForPageLoad(of: site, attempts: attempts - 1, then: done)
         }
     }
 

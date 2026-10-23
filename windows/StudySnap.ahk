@@ -55,7 +55,7 @@ Snap(*) {
         SetTitleMatchMode 2
         if WinWait(site, , 15)
             WinActivate
-        Sleep GetSetting("pasteDelay", 3) * 1000
+        Sleep GetSetting("pasteDelay", 5) * 1000
     }
     Send "^v"
     RememberChat()
@@ -150,7 +150,7 @@ BuildMenu() {
     delayMenu := Menu()
     for seconds in Delays {
         delayMenu.Add(seconds " seconds", PickDelay.Bind(seconds))
-        if (seconds = GetSetting("pasteDelay", 3))
+        if (seconds = GetSetting("pasteDelay", 5))
             delayMenu.Check(seconds " seconds")
     }
     tray.Add("Wait before pasting", delayMenu)

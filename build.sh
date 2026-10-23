@@ -8,5 +8,10 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
 swiftc -O Sources/*.swift -o "$APP/Contents/MacOS/StudySnap" -framework AppKit -framework Carbon
 cp Info.plist "$APP/Contents/"
-codesign --force --sign - "$APP"
+# Signing with a fixed certificate keeps macOS permissions across rebuilds (see README).
+if security find-certificate -c "StudySnap Dev" >/dev/null 2>&1; then
+    codesign --force --sign "StudySnap Dev" "$APP"
+else
+    codesign --force --sign - "$APP"
+fi
 echo "Built $APP — run: open $APP"

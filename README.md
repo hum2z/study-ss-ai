@@ -16,7 +16,10 @@ On first launch:
 2. Allow **Accessibility** (System Settings → Privacy & Security) so it can paste for you.
 3. The first snap will ask for **Screen Recording** permission — allow it.
 
-Rebuilding resets the Accessibility permission (remove and re-add the app).
+Rebuilding resets the permissions (remove and re-add the app). To keep them across
+rebuilds, make a signing certificate once: Keychain Access → Certificate Assistant →
+Create a Certificate… → Name `StudySnap Dev`, Certificate Type **Code Signing** → Create.
+`build.sh` uses it automatically from then on.
 
 ## Windows (Alt+Shift+S)
 
