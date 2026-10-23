@@ -1,11 +1,12 @@
 # StudySnap
 
-A tiny Mac menu bar app: press **⌥⇧S**, drag over a question, and it opens in
-ChatGPT, Gemini or Claude with the screenshot already pasted in.
+Press a shortcut, drag over a question, and it opens in ChatGPT, Gemini or Claude
+with the screenshot already pasted in.
 
-## Setup
+## Mac (⌥⇧S)
 
 ```bash
+xcode-select --install   # once, if you don't have Xcode
 ./build.sh
 open build/StudySnap.app
 ```
@@ -15,9 +16,20 @@ On first launch:
 2. Allow **Accessibility** (System Settings → Privacy & Security) so it can paste for you.
 3. The first snap will ask for **Screen Recording** permission — allow it.
 
-Change the site, auto-Enter, or paste delay any time from the menu bar icon.
+Rebuilding resets the Accessibility permission (remove and re-add the app).
 
-## Notes
+## Windows (Alt+Shift+S)
+
+1. Install **AutoHotkey v2** from https://www.autohotkey.com
+2. Double-click `windows/StudySnap.ahk`.
+3. Pick ChatGPT, Gemini or Claude.
+
+To start it with Windows: press Win+R, type `shell:startup`, and put a shortcut to
+`StudySnap.ahk` in that folder.
+
+## Settings
+
+Change the site, auto-Enter, or paste delay any time from the menu bar / tray icon.
+
 - Be logged in to the site in your default browser.
 - If the paste happens before the page loads, raise "Wait before pasting".
-- Rebuilding resets the Accessibility permission (remove and re-add the app).
