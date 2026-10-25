@@ -34,8 +34,11 @@ TrayTip "Press Alt+Shift+S to snap a question.", "StudySnap is running"
 ; --- Snap flow ---
 
 Snap(*) {
+    ; Wait for the hotkey to be let go — held keys mixed with the snip shortcut opened Copilot.
+    KeyWait "Alt"
+    KeyWait "Shift"
     A_Clipboard := ""
-    Send "#+s"                  ; built-in Windows region picker, copies to clipboard
+    Run "ms-screenclip:"        ; built-in Windows region picker, copies to clipboard
     if !ClipWait(30, 1)         ; nothing copied = user pressed Esc
         return
 
